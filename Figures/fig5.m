@@ -162,10 +162,31 @@ stopData = cell2mat(totalData(:,1+vmc));
 crawlData = cell2mat(totalData(:,1+2*vmc));
 hopData = cell2mat(totalData(:,1+3*vmc));
 
-save(figDataFile, 'allData', 'stopData', 'crawlData', 'hopData', '-append')
+rMax = 14;
+%%% Radius vs. Anisotropy -- STOP %%%
+Data = stopData;
+aniData = Data( vecnorm( Data, 2, 2 ) < rMax, : );
+[Ms_stop, binCs_stop] = computeAnisotropy(aniData, rMax);
+
+%%% Radius vs. Anisotropy -- CRAWL %%%
+Data = crawlData;
+aniData = Data( vecnorm( Data, 2, 2 ) < rMax, : );
+[Ms_crawl, binCs_crawl] = computeAnisotropy(aniData, rMax);
+
+%%% Radius vs. Anisotropy -- HOP %%%
+Data = hopData;
+aniData = Data( vecnorm( Data, 2, 2 ) < rMax, : );
+[Ms_hop, binCs_hop] = computeAnisotropy(aniData, rMax);
+
+save(figDataFile,   'Ms_stop', 'binCs_stop',...
+                    'Ms_crawl', 'binCs_crawl',...
+                    'Ms_hop', 'binCs_hop', '-append') %
 
 else
-    load(figDataFile, 'allData', 'stopData', 'crawlData', 'hopData')
+    load(figDataFile,   'Ms_stop', 'binCs_stop',...
+                        'Ms_crawl', 'binCs_crawl',...
+                        'Ms_hop', 'binCs_hop')
+
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -181,22 +202,16 @@ binSizes = [dx dy];
 
 rMax = 14;
 %%% FIGURE Radius vs. Anisotropy -- STOP %%%
-Data = stopData;
-aniData = Data( vecnorm( Data, 2, 2 ) < rMax, : );
 figTitle = sprintf("Around Stationary Locusts");
-h_stationary = plotAnisotropy(number + 8, aniData, rMax, figTitle);
+h_stationary = plotAnisotropy(number + 8, Ms_stop, binCs_stop, figTitle);
 
 %%% FIGURE Radius vs. Anisotropy -- CRAWL %%%
-Data = crawlData;
-aniData = Data( vecnorm( Data, 2, 2 ) < rMax, : );
 figTitle = sprintf("Around Walking Locusts");
-h_walk = plotAnisotropy(number + 9, aniData, rMax, figTitle);
+h_walk = plotAnisotropy(number + 9, Ms_crawl, binCs_crawl, figTitle);
 
 %%% FIGURE Radius vs. Anisotropy -- HOP %%%
-Data = hopData;
-aniData = Data( vecnorm( Data, 2, 2 ) < rMax, : );
 figTitle = sprintf("Around Hopping Locusts");
-h_hop = plotAnisotropy(number + 10, aniData, rMax, figTitle);
+h_hop = plotAnisotropy(number + 10, Ms_hop, binCs_hop, figTitle);
 
 fprintf('Plotting all the figures took %f seconds \n', toc)
     
@@ -205,7 +220,7 @@ fprintf('Plotting all the figures took %f seconds \n', toc)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if saveFigs
     
-    figPath = '';
+    figPath = 'figs/';
     
     filename = 'fig5_stationary';
     print(h_stationary,[figPath filename, '.eps'],'-depsc')
@@ -307,34 +322,12 @@ varargout{4} = countnoneighs;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function [MsCell, binCtrs] = computeAnisotropy(Data, rMax)
 
-function h = plotAnisotropy(figNum, Data, rMax, figTitle)
-
-disp('Now making the anisotropy plot...')
+disp('Now computing the anisotropy by radius...')
 tic;
 
 Data = rmmissing(Data);
-
-factor = 2;
-
-h = figure(figNum);
-set(h,'Units','Inches');
-pos = get(h, 'Position');
-set(h,'PaperPositionMode','Manual') % Setting this to 'manual' unlinks 'Position' (what gets displayed) and 'PaperPosition' (what gets printed)
-set(h,'PaperPosition',[ 0 0 4 3]*factor);
-set(h,'Position',[ 0 0 4 3]*factor);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Figure Options %%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-titlesize = 12*factor;
-axislabelsize = 10*factor;
-fontSize = axislabelsize;
-ticklabelsize = 8*factor;
-subfiglabelsize = 12*factor;
-
-%linewidth
-lwidth = 1.5*factor;
 
 dists = vecnorm(Data(:,1:2),2,2);
 angles = atan2( Data(:,2), Data(:,1));
@@ -410,13 +403,50 @@ for bin = 1:nBins
     Ms(bin,:) = meanM;
     Mstds(bin,:) = stdM;
     phis(bin,:) = meanPhi;
-    
 end
+
+MsCell = {Ms, Mstds, uniStds};
+
+fprintf('That took %f seconds \n', toc)
+end
+
+function h = plotAnisotropy(figNum, MsCell, binCtrs, figTitle)
+
+Ms = MsCell{1};
+Mstds = MsCell{2};
+uniStds = MsCell{3};
+
+disp('Now making the anisotropy plot...')
+tic;
+
+factor = 2;
+
+h = figure(figNum);
+set(h,'Units','Inches');
+pos = get(h, 'Position');
+set(h,'PaperPositionMode','Manual') % Setting this to 'manual' unlinks 'Position' (what gets displayed) and 'PaperPosition' (what gets printed)
+set(h,'PaperPosition',[ 0 0 4 3]*factor);
+set(h,'Position',[ 0 0 4 3]*factor);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Figure Options %%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+titlesize = 12*factor;
+axislabelsize = 10*factor;
+fontSize = axislabelsize;
+ticklabelsize = 8*factor;
+subfiglabelsize = 12*factor;
+
+%linewidth
+lwidth = 1.5*factor;
+
+nBins = length(binCtrs);
+MsUni = zeros(nBins,1);
 
 % for confidence intervals
 alph = 0.01; % this gives us the 100(1-alph)% = 99% CI
-tstar = tinv(1-alph,n-1);
-zstar = icdf('normal',1-alph/2,0,1);
+% tstar = tinv(1-alph,n-1);
+% zstar = icdf('normal',1-alph/2,0,1);
 
 % Ms = [ M^c_1 -M^s_1 M^c_2 -M^s_2 ]; for each bin
 p = plot( binCtrs, Ms(:,2),'-.', binCtrs, Ms(:,3),'-', 'LineWidth', lwidth );

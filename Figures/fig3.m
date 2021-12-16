@@ -131,7 +131,7 @@ fprintf('Plotting all the figures took %f seconds \n', toc)
 %%% Save Figure, Table, LaTeX %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if saveFigs
-    figPath = '';
+    figPath = 'figs/';
     
     filename = 'fig1_speeds';
     print(h_all,[figPath filename, '.eps'],'-depsc')

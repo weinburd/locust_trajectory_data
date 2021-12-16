@@ -162,10 +162,36 @@ stopData = cell2mat(totalData(:,1+vmc));
 crawlData = cell2mat(totalData(:,1+2*vmc));
 hopData = cell2mat(totalData(:,1+3*vmc));
 
-save(figDataFile, 'allData', 'stopData', 'crawlData', 'hopData', '-append')
+% histogram options
+dx = 0.5;
+dy = 0.5;
+
+binSizes = [dx dy];
+
+%%% Histogram ALL %%%
+plotrad = 14;
+[binN_all, binCtrs_all] = RelNeiBins(allData, binSizes, plotrad);
+
+plotrad = 7;
+%%% Histogram STOP %%%
+[binN_stop, binCtrs_stop] = RelNeiBins(stopData, binSizes, plotrad);
+
+%%% Histogram CRAWL %%%
+[binN_crawl, binCtrs_crawl] = RelNeiBins(crawlData, binSizes, plotrad);
+
+%%% Histogram HOP %%%
+[binN_hop, binCtrs_hop] = RelNeiBins(hopData, binSizes, plotrad);
+
+save(figDataFile,   'binN_all', 'binCtrs_all',...
+                    'binN_stop', 'binCtrs_stop',...
+                    'binN_crawl', 'binCtrs_crawl',...
+                    'binN_hop', 'binCtrs_hop', '-append')
 
 else
-    load(figDataFile, 'allData', 'stopData', 'crawlData', 'hopData')
+    load(figDataFile,   'binN_all', 'binCtrs_all',...
+                        'binN_stop', 'binCtrs_stop',...
+                        'binN_crawl', 'binCtrs_crawl',...
+                        'binN_hop', 'binCtrs_hop')
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -182,21 +208,21 @@ binSizes = [dx dy];
 %%% FIGURE ALL %%%
 plotrad = 14;
 figTitle = sprintf("Relative Neighbor Density");
-h_all = plotRelNeiDen(number, allData, binSizes, plotrad, figTitle);
+h_all = plotRelNeiDen(number, binN_all, binCtrs_all, binSizes, plotrad, figTitle);
 
 plotrad = 7;
 %binSizes = [0.25 0.25];
 %%% FIGURE STOP %%%
 figTitle = sprintf("Around Stationary Locusts");
-h_stationary = plotRelNeiDen(number+1, stopData, binSizes, plotrad, figTitle);
+h_stationary = plotRelNeiDen(number+1, binN_stop, binCtrs_stop, binSizes, plotrad, figTitle);
 
 %%% FIGURE CRAWL %%%
 figTitle = sprintf("Around Walking Locusts");
-h_walk = plotRelNeiDen(number+2, crawlData, binSizes, plotrad, figTitle);
+h_walk = plotRelNeiDen(number+2, binN_crawl, binCtrs_crawl, binSizes, plotrad, figTitle);
 
 %%% FIGURE HOP %%%
 figTitle = sprintf("Around Hopping Locusts");
-h_hop = plotRelNeiDen(number+3, hopData, binSizes, plotrad, figTitle);
+h_hop = plotRelNeiDen(number+3, binN_hop, binCtrs_hop, binSizes, plotrad, figTitle);
 
 fprintf('Plotting all the figures took %f seconds \n', toc)
     
@@ -205,7 +231,7 @@ fprintf('Plotting all the figures took %f seconds \n', toc)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if saveFigs
     
-    figPath = '';
+    figPath = 'figs/';
     
     filename = 'fig1_density';
     print(h_all,[figPath filename, '.eps'],'-depsc')
@@ -310,8 +336,7 @@ varargout{4} = countnoneighs;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function h = plotRelNeiDen(figNum, neighbors, binSizes, plotrad, figTitle)
+function [binN, binCtrs] = RelNeiBins(neighbors, binSizes, plotrad)
 
 % histogram options
 dx = binSizes(1);
@@ -320,6 +345,14 @@ dy = binSizes(2);
 xedges = -plotrad:dx:plotrad;
 yedges = -plotrad:dy:plotrad;
 edges = {xedges, yedges};
+% histogram counts
+[N, ctrs] = hist3(neighbors,'Edges',edges,'CdataMode','auto','Normalization','pdf');
+binN = N;
+binCtrs = ctrs;
+
+end
+
+function h = plotRelNeiDen(figNum, binN, binCtrs, binSizes, plotrad, figTitle)
 
 factor = 2; % choose 1 or 2
 
@@ -332,8 +365,18 @@ set(h,'PaperPositionMode','Manual') % Setting this to 'manual' unlinks 'Position
 set(h,'PaperPosition',[ 0 0 wid hei]);
 set(h,'Position',[ 0 0 wid hei]);
 
+% histogram options
+dx = binSizes(1);
+dy = binSizes(2);
+%plotrad = 14;
+xedges = -plotrad:dx:plotrad;
+yedges = -plotrad:dy:plotrad;
+edges = {xedges, yedges};
 % histogram counts
-[N, ctrs] = hist3(neighbors,'Edges',edges,'CdataMode','auto','Normalization','pdf');
+N = binN;
+ctrs = binCtrs;
+%[N, ctrs] = hist3(neighbors,'Edges',edges,'CdataMode','auto','Normalization','pdf');
+
 % convert to "relative density", according to Buhl et al. 2012
 
 % When computing relative density, we need to account for 

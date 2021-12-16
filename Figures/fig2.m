@@ -11,7 +11,7 @@ figDataFile = 'fig_data.mat';
 
 %%% Options %%%
 saveFigs = 1;
-assembleData = 1; %and save it to figDataFile
+assembleData = 0; %and save it to figDataFile
     %else loads data from figDataFile
 %%%
 
@@ -200,7 +200,7 @@ fprintf(['Total locusts points: %d | Mean Density: %f | \n'...
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if saveFigs
     
-    figPath = '';
+    figPath = 'figs/';
     
     filename = 'fig2_polar';
     print(h_polar,[figPath filename, '.eps'],'-depsc')
