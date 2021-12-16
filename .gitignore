@@ -1,0 +1,21 @@
+# Video files
+*.mp4
+*.avi
+*.mov
+# Image files
+*.eps
+*.tif
+
+# TrackMate data files
+*.xml
+## The Data directory
+!Data/*
+
+## Matlab files
+# data
+*.mat
+# autosave
+*.asv
+
+## Mac OS thing
+.DS_Store
