@@ -41,15 +41,14 @@ The remainder of this README describes the sub-directories and their contents.
 Download the project's data from:
 <https://putaurlhere>
 
-Unpack the file into this directory
-Contains Matlab data files `.mat` (cleaned and processed) and TrackMate data files `.xml` (original, from automatic tracking). Also includes data files obtained from manual tracking (ground truth). Data files are currently stored locally.
+Unpack the file into this directory. The directory should now contain Matlab data files `.mat` which include cleaned and processed numerical trajectories and two subdirectories.
 
 1. `data_recording.mat`, `data_recording2.mat`
     * contains the the full data set used in the paper
 
 **\examples** contains all data files for the two example clips analyzed in `pipeline_examples.m`. Includes the starting preprocessed video, intermediate processed video and `.xml` data files, and final data `data_recording_examples.mat`.
 
-**\manual** contains the two ground-truth data sets obtained by manual tracking in TrackMate. **Jacob Landsberg** and **Tarush Sharma** did the bulk of the manual tracking. The original video files are included so that the `.xml`s can be opened in Fiji>Plugins>Tracking>Load a TrackMate File.
+**\manual** contains the two ground-truth data sets obtained by manual tracking in TrackMate. **Jacob Landsberg** and **Tarush Sharma** did the bulk of the manual tracking. The original video files are also included so that the `.xml`s can be opened in Fiji>Plugins>Tracking>Load a TrackMate File.
 
 
 \Figures
