@@ -11,7 +11,7 @@ The code here collects and analyzes numerical position-time data from raw video 
 
 There are three levels of functionality:
 1. Download only this repository and immediately run scripts in `\Figures` and `\Tables` using the stored data contained therein.
-2. Download the full data set <https://here>, allowing you to recreate the figures and tables directly from the final data set, and to run the script `pipeline_examples.m` to clean and process a few example data sets and compute the tracking accuracy.
+2. Download the full data set <https://doi.org/10.5061/dryad.n02v6wwzz>, allowing you to recreate the figures and tables directly from the final data set, and to run the script `pipeline_examples.m` to clean and process a few example data sets and compute the tracking accuracy.
 3. Install Fiji on your own computer and set up the following (details and links in References at the end). This allows you to run the example pipeline to extract trajectory data from the videos provided with the data downloaded in #2.
     * the TrackMate v6.0.3 plugin
     * the Matlab-ImageJ update site
@@ -39,7 +39,7 @@ The remainder of this README describes the sub-directories and their contents.
 ---
 
 Download the project's data from:
-<https://putaurlhere>
+<https://doi.org/10.5061/dryad.n02v6wwzz>
 
 Unpack the file into this directory. The directory should now contain Matlab data files `.mat` which include cleaned and processed numerical trajectories and two subdirectories.
 
