@@ -1,3 +1,5 @@
+%plots histograms of instantaneous speed as appear in Figure 3 and Figure 1 (left).
+
 close all
 % clear all % ensure we're loading new data
 addpath('../Data/')

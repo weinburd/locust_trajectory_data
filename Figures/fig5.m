@@ -1,3 +1,5 @@
+%plots measures of anisotropy as a function of distance from the focal individual as appears in Figure 5.
+
 close all
 % clear all % ensure we're loading new data
 

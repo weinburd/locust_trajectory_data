@@ -1,3 +1,5 @@
+%plots relative neighbor density as appears in Figure 4 and Figure 1 (right).
+
 close all
 % clear all % ensure we're loading new data
 
@@ -17,14 +19,17 @@ global  idx_x idx_y idx_flag...
 
 figDataFile = 'fig_data.mat';
 
+% To restore original...
+% edit reshapeFactor, dx, dy, and uncomment caxis([0 1.6])
+
 %%% Options %%%
 saveFigs = 1;
-assembleData = 0; %and save it to figDataFile
+assembleData = 1; %and save it to figDataFile
     %else loads data from figDataFile
 
 % the max number of neighbors around each focal individual
 % can be an integer or 'all', but 'all' cannot distinguish focalState
-numNeighbors = 100; % 100 gets all of them % 'all';
+numNeighbors = 1; % 100 gets all of them % 'all';
 d = 7; % 7 cm max radius for angles
 %%%
 
@@ -116,10 +121,14 @@ for m = matNums
         countnan = 0;
         countempty = 0;
         countnoneighs = 0;
-    
+        
+        % for RESHAPING Data
+        % suppose a locust is approximatly 5mm wide and 15mm long
+        reshapeFactor = .5*[1/.5 1/1.5];
+
         % assemble a new neighbor list considering only the prescribed number of neighbors
         [thisData, count, countnan, countempty, countnoneighs]...
-            = neighPositions(data, neighbors, count, countnan, countempty, countnoneighs);
+            = neighPositions(data, neighbors, count, countnan, countempty, countnoneighs, reshapeFactor);
         
         %thisData = nNeighs by 3 matrix = [xpos ypos focalState]
         neighborAngles = atan2(thisData(:,2),thisData(:,1));
@@ -163,8 +172,8 @@ crawlData = cell2mat(totalData(:,1+2*vmc));
 hopData = cell2mat(totalData(:,1+3*vmc));
 
 % histogram options
-dx = 0.5;
-dy = 0.5;
+dx = 0.25;
+dy = 0.25;
 
 binSizes = [dx dy];
 
@@ -185,13 +194,15 @@ plotrad = 7;
 save(figDataFile,   'binN_all', 'binCtrs_all',...
                     'binN_stop', 'binCtrs_stop',...
                     'binN_crawl', 'binCtrs_crawl',...
-                    'binN_hop', 'binCtrs_hop', '-append')
+                    'binN_hop', 'binCtrs_hop',...
+                    'binSizes','-append')
 
 else
     load(figDataFile,   'binN_all', 'binCtrs_all',...
                         'binN_stop', 'binCtrs_stop',...
                         'binN_crawl', 'binCtrs_crawl',...
-                        'binN_hop', 'binCtrs_hop')
+                        'binN_hop', 'binCtrs_hop',...
+                        'binSizes')
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -200,10 +211,7 @@ end
 tic
 
 % histogram options
-dx = 0.5;
-dy = 0.5;
-
-binSizes = [dx dy];
+% binSizes = loaded from the file
 
 %%% FIGURE ALL %%%
 plotrad = 14;
@@ -259,6 +267,7 @@ count = varargin{1};
 countnan = varargin{2};
 countempty = varargin{3};
 countnoneighs = varargin{4};
+reshapeFactor = varargin{5};
 
 Ntimesteps = size(neighbors,2);
 thisData = cell(Ntimesteps,1);
@@ -295,13 +304,15 @@ thisData = cell(Ntimesteps,1);
                 % and by a factor of pi/2 so that focal locust is facing up
                 crel_posn = abs(crel_posn)...
                             .*exp(1i*angle(crel_posn) - 1i*data(locust,3,t) + 1i*pi/2);
-                        
+                
                 %debugging
                 %global THETAS
                 %THETAS = [THETAS data(locust,3,t)];
+                %neighbor orientation relative to focal locust orientation
+                %rel_theta = wrap2Pi(data(neigh_idx,3,t)-data(locust,3,t));
                 
                 % convert back to (x,y) positions
-                rel_posn = [real(crel_posn) imag(crel_posn)];
+                rel_posn = [real(crel_posn) imag(crel_posn)].*reshapeFactor;
                 
                 %%% debugging... %%%
                 if isnan(rel_posn(1:last_idx,:)) %(data(locust,3,t)) %using data catches some places where the heading is undefined but there are no neighbors
@@ -403,7 +414,7 @@ xlim([xctrs(1) xctrs(end)])
 ylim([yctrs(1) yctrs(end)])
 daspect([1 1 1]) %pbaspect([1 1 1])
 if plotrad == 7
-    caxis([0 1.6])
+    %caxis([0 1.6])
 end
 view(2)
 

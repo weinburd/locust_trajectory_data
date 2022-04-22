@@ -1,3 +1,5 @@
+%plots density, polarization, and entropy as in Figure 2
+
 close all
 % clear all % ensure we're loading new data
 addpath('../Data/',...
