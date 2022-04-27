@@ -20,7 +20,7 @@ global  idx_x idx_y idx_flag...
 figDataFile = 'fig_data.mat';
 
 % To restore original...
-% edit reshapeFactor, dx, dy, and uncomment caxis([0 1.6])
+% edit reshapeFactor, dx, dy, numNeighbors, and uncomment caxis([0 1.6])
 
 %%% Options %%%
 saveFigs = 1;
@@ -29,7 +29,7 @@ assembleData = 1; %and save it to figDataFile
 
 % the max number of neighbors around each focal individual
 % can be an integer or 'all', but 'all' cannot distinguish focalState
-numNeighbors = 1; % 100 gets all of them % 'all';
+numNeighbors = 100; % 100 gets all of them % 'all';
 d = 7; % 7 cm max radius for angles
 %%%
 
@@ -124,11 +124,16 @@ for m = matNums
         
         % for RESHAPING Data
         % suppose a locust is approximatly 5mm wide and 15mm long
-        reshapeFactor = .5*[1/.5 1/1.5];
+        reshapeData = {'rescale', [.5 1.5]}; 
+        % 'rescale', [.5 1.5]  will rescale by: 0.5*[1/.5 1/1.5]
+        % or
+        % 'subtract', [.5 1.5] will subtract the distance within ellipse
+        % with width = .5 and length = 1.5cm, at the angle of each relative
+        % neighbor
 
         % assemble a new neighbor list considering only the prescribed number of neighbors
         [thisData, count, countnan, countempty, countnoneighs]...
-            = neighPositions(data, neighbors, count, countnan, countempty, countnoneighs, reshapeFactor);
+            = neighPositions(data, neighbors, count, countnan, countempty, countnoneighs, reshapeData);
         
         %thisData = nNeighs by 3 matrix = [xpos ypos focalState]
         neighborAngles = atan2(thisData(:,2),thisData(:,1));
@@ -267,7 +272,12 @@ count = varargin{1};
 countnan = varargin{2};
 countempty = varargin{3};
 countnoneighs = varargin{4};
-reshapeFactor = varargin{5};
+reshapeData = varargin{5};
+
+reshapeOpt = reshapeData{1};
+% when reshapeOpt = 'rescale', rescales all x,y coords.
+% when reshapeOpt = 'subtract', subtracts an ellipse from all x,y coords.
+bodyEllipse = reshapeData{2};
 
 Ntimesteps = size(neighbors,2);
 thisData = cell(Ntimesteps,1);
@@ -290,15 +300,6 @@ thisData = cell(Ntimesteps,1);
                 % y-component gets a negative sign due to ImageJ pixel coordinate
                 crel_posn = rel_posn(:,1)-1i*rel_posn(:,2); 
                 
-                if isa(numNeighbors,'double')
-                    % consider only the prescribed number of neighbors
-                    [~,I] = mink(abs(crel_posn), numNeighbors);
-                    crel_posn = crel_posn(I);
-                    last_idx = min(numNeighbors,length(crel_posn));
-                elseif isa(numNeighbors,'char')
-                    % consider all neighbors
-                    last_idx = length(crel_posn);
-                end
                 
                 % rotate by focal locust's orientation data(locust,3,t)
                 % and by a factor of pi/2 so that focal locust is facing up
@@ -308,11 +309,38 @@ thisData = cell(Ntimesteps,1);
                 %debugging
                 %global THETAS
                 %THETAS = [THETAS data(locust,3,t)];
+
                 %neighbor orientation relative to focal locust orientation
                 %rel_theta = wrap2Pi(data(neigh_idx,3,t)-data(locust,3,t));
                 
-                % convert back to (x,y) positions
-                rel_posn = [real(crel_posn) imag(crel_posn)].*reshapeFactor;
+                % reshape complex positions
+                haxis = bodyEllipse(1)/2;
+                vaxis = bodyEllipse(2)/2;
+                if strcmp(reshapeOpt,'rescale')
+                    % rescales y coords to make the ellipse into a circle with the same width
+                    crel_posn = real(crel_posn) + 1i*haxis/vaxis.*imag(crel_posn);
+                elseif strcmp(reshapeOpt, 'subtract')
+                    % this finds the distance from the origin to the point
+                    % on the ellipse at an angle = angle(crel_posn)
+                    % NOTE that angle is NOT equal to the ellipse parameter.
+                    hdistsqr = 1./(1/haxis^2+tan(angle(crel_posn)).^2/vaxis^2);
+                    ell_dist = hdistsqr + tan(angle(crel_posn)).^2.*hdistsqr;
+                    sub_dist = max( abs(crel_posn)-ell_dist, 0);
+                    crel_posn = (sub_dist)./abs(crel_posn).*crel_posn;
+                end
+
+                if isa(numNeighbors,'double')
+                    % consider only the prescribed number of neighbors
+                    [~,I] = mink(abs(crel_posn), numNeighbors);
+                    crel_posn = crel_posn(I);
+                    last_idx = min(numNeighbors,length(crel_posn));
+                elseif isa(numNeighbors,'char')
+                    % consider all neighbors
+                    last_idx = length(crel_posn);
+                end
+
+                % convert back to (x,y) coords
+                rel_posn = [real(crel_posn) imag(crel_posn)];
                 
                 %%% debugging... %%%
                 if isnan(rel_posn(1:last_idx,:)) %(data(locust,3,t)) %using data catches some places where the heading is undefined but there are no neighbors
