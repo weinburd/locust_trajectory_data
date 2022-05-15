@@ -36,6 +36,9 @@ end
 reshapeOpt = reshapeData{1};
 % when reshapeOpt = 'rescale', rescales all x,y coords.
 % when reshapeOpt = 'subtract', subtracts an ellipse from all x,y coords.
+% when reshapeOpt = 'worst', subtracts a vertical distance from x,y coords
+%                   according to the minimum distance between focal and neighbor when both
+%                   are modelled as vertical lines with no width
 bodyEllipse = reshapeData{2};
 
 Ntimesteps = size(neighbors,2);
@@ -85,14 +88,38 @@ thisData = cell(Ntimesteps,1);
                     hdistsqr = 1./(1/haxis^2+tan(angle(crel_posn)).^2/vaxis^2);
                     ell_dist = sqrt(hdistsqr + tan(angle(crel_posn)).^2.*hdistsqr);
                     sub_dist = max( abs(crel_posn)-ell_dist, 0);
-                    % add a line to remove any folks at zero...?
+                    %TODO: add a line to remove any folks at zero...?
                     crel_posn = (sub_dist)./abs(crel_posn).*crel_posn;
+                elseif strcmp(reshapeOpt, 'subtractVert')
+                    % this finds the vertical distance from the x-axis to the point
+                    % on the ellipse at an angle = angle(crel_posn)
+                    % NOTE that angle is NOT equal to the ellipse parameter.
+                    hdistsqr = 1./(1/haxis^2+tan(angle(crel_posn)).^2/vaxis^2);
+                    vdist = sqrt(tan(angle(crel_posn)).^2.*hdistsqr);
+%                     sub_dist = max( imag(crel_posn)-vdist, 0);
+%                     crel_posn = crel_posn - 1i*sub_dist;
+                    sub_idx = sign(imag(crel_posn)).*imag(crel_posn)-vdist>0;
+                    % if the new vertical distance is greater than 0, subtract
+                    crel_posn(sub_idx) = crel_posn(sub_idx) - sign(imag(crel_posn(sub_idx))).*1i.*vdist(sub_idx);
+                    % otherwise, set imaginary part = 0
+                    crel_posn(~sub_idx) = real(crel_posn(~sub_idx)) + 1i*imag(0*crel_posn(~sub_idx)); % need the +1i... to stay as a "complex NaN"
+                elseif strcmp(reshapeOpt, 'worst')
+                    ys = imag(crel_posn);
+                    ysNew = ys;
+                    %ysNew(ys<0) = ys(ys<0); %automatically taken care of by preallocating
+                    ysNew(abs(ys-vaxis)<vaxis) = 0;
+                    ysNew(ys>2*vaxis) = ys(ys>2*vaxis)-2*vaxis;
+                    crel_posn = real(crel_posn) + 1i*ysNew;
+                    %check
+%                     length(ysNew)
+%                     length(ys)
+%                     p='pause';
                 elseif strcmp(reshapeOpt,'none')
                     % do nothing
                 end
 
                 if isa(numNeighbors,'double')
-                    % consider only the prescribed number of neighbors
+                    % consider only the prescribed number of closest neighbors
                     [~,I] = mink(abs(crel_posn), numNeighbors);
                     crel_posn = crel_posn(I);
                     last_idx = min(numNeighbors,length(crel_posn));
@@ -100,10 +127,12 @@ thisData = cell(Ntimesteps,1);
                     % consider all neighbors
                     last_idx = length(crel_posn);
                 end
-
+                
                 % convert back to (x,y) coords
                 rel_posn = [real(crel_posn) imag(crel_posn)];
-                
+
+                theseNeighbors = rel_posn(1:last_idx,:);
+
                 %%% debugging... %%%
                 if isnan(rel_posn(1:last_idx,:)) %(data(locust,3,t)) %using data catches some places where the heading is undefined but there are no neighbors
                 % focal locust was in the frame, but heading = NaN because it either just entered or just left the frame
@@ -118,8 +147,6 @@ thisData = cell(Ntimesteps,1);
                 inDebug.count = inDebug.count + max(1,size(rel_posn(1:last_idx,:),1));
                 % should have: count == countnan+countempty+size(rmmissing(allData),1)
                 %        also: count == countempty+size(allData,1)
-                
-                theseNeighbors = rel_posn(1:last_idx,:);
             end
             nNeighs = size(theseNeighbors,1);
             nowNeighbors{locusts==locust} = [ theseNeighbors data(locust,4,t)*ones(nNeighs,1) ];

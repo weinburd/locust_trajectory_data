@@ -34,12 +34,18 @@ d = 7; % 7 cm max radius for angles
 
 % for RESHAPING Data
 % suppose a locust is approximatly 5mm wide and 15mm long
-reshapeData = {'subtract', [.5 1.5]}; 
-% 'rescale', [.5 1.5]  will rescale by: 0.5*[1/.5 1/1.5]
+reshapeData = {'subtractVert', [.5 1.5]}; 
+% 'rescale', [.5 1.5] will rescale by: 0.5*[1/.5 1/1.5]
 % or
 % 'subtract', [.5 1.5] will subtract the distance within ellipse
 % with width = .5 and length = 1.5cm, at the angle of each relative
 % neighbor
+% 'subtractVert', [.5 1.5] will subtract the vertical distance within
+% ellipse (same ellipse as 'subtract')
+% or
+% 'worst', [0, 1.5] will subtract a vertical distance determined by
+% modeling the locusts as linesegments with length 1.5cm and finding the
+% minimum distance between the focal's head and the neighbor.
 %%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -344,7 +350,7 @@ end
 view(2)
 
 %%% Add focal locust %%%
-if ~strcmp(reshapeData{1},'subtract')
+if ~(strcmp(reshapeData{1},'subtract') || strcmp(reshapeData{1},'subtractVert'))
 hold on
 quiver3(0,0,1.1*max(max(N)),0,focalLine(1),0,...
         'o','MarkerSize',focalSize,'LineWidth',focalLine(2),...
