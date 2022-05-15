@@ -124,7 +124,7 @@ for m = matNums
         
         % for RESHAPING Data
         % suppose a locust is approximatly 5mm wide and 15mm long
-        reshapeData = {'rescale', [.5 1.5]}; 
+        reshapeData = {'subtract', [.5 1.5]}; 
         % 'rescale', [.5 1.5]  will rescale by: 0.5*[1/.5 1/1.5]
         % or
         % 'subtract', [.5 1.5] will subtract the distance within ellipse
@@ -221,21 +221,21 @@ tic
 %%% FIGURE ALL %%%
 plotrad = 14;
 figTitle = sprintf("Relative Neighbor Density");
-h_all = plotRelNeiDen(number, binN_all, binCtrs_all, binSizes, plotrad, figTitle);
+h_all = plotRelNeiDen(number, binN_all, binCtrs_all, binSizes, plotrad, figTitle,reshapeData);
 
 plotrad = 7;
 %binSizes = [0.25 0.25];
 %%% FIGURE STOP %%%
 figTitle = sprintf("Around Stationary Locusts");
-h_stationary = plotRelNeiDen(number+1, binN_stop, binCtrs_stop, binSizes, plotrad, figTitle);
+h_stationary = plotRelNeiDen(number+1, binN_stop, binCtrs_stop, binSizes, plotrad, figTitle,reshapeData);
 
 %%% FIGURE CRAWL %%%
 figTitle = sprintf("Around Walking Locusts");
-h_walk = plotRelNeiDen(number+2, binN_crawl, binCtrs_crawl, binSizes, plotrad, figTitle);
+h_walk = plotRelNeiDen(number+2, binN_crawl, binCtrs_crawl, binSizes, plotrad, figTitle,reshapeData);
 
 %%% FIGURE HOP %%%
 figTitle = sprintf("Around Hopping Locusts");
-h_hop = plotRelNeiDen(number+3, binN_hop, binCtrs_hop, binSizes, plotrad, figTitle);
+h_hop = plotRelNeiDen(number+3, binN_hop, binCtrs_hop, binSizes, plotrad, figTitle,reshapeData);
 
 fprintf('Plotting all the figures took %f seconds \n', toc)
     
@@ -324,8 +324,9 @@ thisData = cell(Ntimesteps,1);
                     % on the ellipse at an angle = angle(crel_posn)
                     % NOTE that angle is NOT equal to the ellipse parameter.
                     hdistsqr = 1./(1/haxis^2+tan(angle(crel_posn)).^2/vaxis^2);
-                    ell_dist = hdistsqr + tan(angle(crel_posn)).^2.*hdistsqr;
+                    ell_dist = sqrt(hdistsqr + tan(angle(crel_posn)).^2.*hdistsqr);
                     sub_dist = max( abs(crel_posn)-ell_dist, 0);
+                    % add a line to remove any folks at zero...?
                     crel_posn = (sub_dist)./abs(crel_posn).*crel_posn;
                 end
 
@@ -391,7 +392,9 @@ binCtrs = ctrs;
 
 end
 
-function h = plotRelNeiDen(figNum, binN, binCtrs, binSizes, plotrad, figTitle)
+function h = plotRelNeiDen(figNum, binN, binCtrs, binSizes, plotrad, figTitle,varargin)
+
+reshapeData = varargin{1};
 
 factor = 2; % choose 1 or 2
 
@@ -447,11 +450,13 @@ end
 view(2)
 
 %%% Add focal locust %%%
+if ~strcmp(reshapeData{1},'subtract')
 hold on
 quiver3(0,0,1.1*max(max(N)),0,focalLine(1),0,...
         'o','MarkerSize',focalSize,'LineWidth',focalLine(2),...
         'MarkerFaceColor','w','Color','w','AutoScale','off')
 hold off
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Figure Options %%%
