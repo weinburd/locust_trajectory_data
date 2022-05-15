@@ -4,6 +4,8 @@ function [data_Neighbors, neighbor_cloud] = dataNeighbors(data_final, fieldDims)
 %       each locust has 9 features  at each timestep
 %       the features are:
 %   [x y flag speed theta MagAveVelocity localStdSpeed min(fwdMax,bkwdMax) motionState]
+% fieldDims = a 4 by 1 vector of the video's inscribed rectangular field dimentions (in physical units)
+%       [left_side right_side bottom top]
 %%% Outputs:
 % data_Neighbors = an Nlocust by Ntimestep cell array
 %                   each entry contains an array of locust indices that are neighbors of that locust at that timestep
