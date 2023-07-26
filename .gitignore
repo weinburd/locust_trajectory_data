@@ -11,6 +11,7 @@
 ## The Data directory
 !Data/*
 *.zip
+*.csv
 
 ## Matlab files
 # data
