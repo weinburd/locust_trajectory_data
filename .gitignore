@@ -17,6 +17,7 @@
 # data
 *.mat
 !fig_data.mat
+!fig_data_reshape.mat
 !table_data.mat
 # autosave
 *.asv

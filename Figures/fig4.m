@@ -1,7 +1,7 @@
 %plots relative neighbor density as appears in Figure 4 and Figure 1 (right).
 
 close all
-% clear all % ensure we're loading new data
+clear all % ensure we're loading new data
 
 addpath('../Data/',...
         '../Functions',...
@@ -34,7 +34,7 @@ d = 7; % 7 cm max radius for angles
 
 % for RESHAPING Data
 % suppose a locust is approximatly 5mm wide and 15mm long
-reshapeData = {'subtractVert', [.5 1.5]}; 
+reshapeData = {'rescale', [1 1]}; 
 % 'rescale', [.5 1.5] will rescale by: 0.5*[1/.5 1/1.5]
 % or
 % 'subtract', [.5 1.5] will subtract the distance within ellipse
@@ -183,8 +183,8 @@ crawlData = cell2mat(totalData(:,1+2*vmc));
 hopData = cell2mat(totalData(:,1+3*vmc));
 
 % histogram options
-dx = 0.25;
-dy = 0.25;
+dx = 0.5;
+dy = 0.5;
 
 binSizes = [dx dy];
 
