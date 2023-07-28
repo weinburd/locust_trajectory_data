@@ -36,7 +36,7 @@ d = 7; % 7 cm max radius for angles
 % suppose a locust is approximatly 5mm wide and 15mm long
 reshapeData = {'none', [0 0]}; 
 reshapeData = {'rescale', [.5 1.5]}; 
-%reshapeData = {'worst', [0 1.5]}; 
+reshapeData = {'worst', [0 1.5]}; 
 % 'rescale', [.5 1.5] will rescale by: 0.5*[1/.5 1/1.5]
 % or
 % 'subtract', [.5 1.5] will subtract the distance within ellipse
@@ -204,13 +204,22 @@ plotrad = 7;
 %%% Histogram HOP %%%
 [binN.hop, binCtrs.hop] = RelNeiBins(hopData, binSizes, plotrad);
 
+bodyShapedData = matfile(figDataFile, 'Writable',true);
 
-save(figDataFile,   'binN', 'binCtrs',...
-                    'binSizes','-append')
+bodyShapedData.(reshapeData{1}) = {binN, binCtrs, binSizes};
+
+% save(figDataFile,   'binN', 'binCtrs',...
+%                     'binSizes','-append')
 
 else
-    load(figDataFile,   'binN', 'binCtrs',...
-                        'binSizes')
+    bodyShapedData = matfile(figDataFile);
+    these_data = bodyShapedData.(reshapeData{1});
+    binN = these_data{1};
+    binCtrs = these_data{2};
+    binSizes = these_data{3};
+    
+%     load(figDataFile,   'binN', 'binCtrs',...
+%                         'binSizes')
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
