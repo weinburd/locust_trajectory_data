@@ -24,7 +24,7 @@ figDataFile = 'fig_data_reshape.mat';
 
 %%% Options %%%
 saveFigs = 1;
-assembleData = 1; %and save it to figDataFile
+assembleData = 0; %and save it to figDataFile
     %else loads data from figDataFile
 
 % the max number of neighbors around each focal individual
@@ -35,8 +35,8 @@ d = 7; % 7 cm max radius for angles
 % for RESHAPING Data
 % suppose a locust is approximatly 5mm wide and 15mm long
 reshapeData = {'none', [0 0]}; 
-reshapeData = {'rescale', [.5 1.5]}; 
-reshapeData = {'worst', [0 1.5]}; 
+%reshapeData = {'rescale', [.5 1.5]}; 
+%reshapeData = {'worst', [0 1.5]}; 
 % 'rescale', [.5 1.5] will rescale by: 0.5*[1/.5 1/1.5]
 % or
 % 'subtract', [.5 1.5] will subtract the distance within ellipse
@@ -345,6 +345,7 @@ xctrs = ctrs{1}; yctrs = ctrs{2}; % these are the bin centers
 xctrs = xctrs(1:end-1); yctrs = yctrs(1:end-1); %cut off last empty bin
 N = N(1:end-1,1:end-1);
 % plot as a surface
+N(N < 0.000001) = 0.000001; % remove zero counts
 surf(xctrs,yctrs,N', 'EdgeColor','None','FaceColor','interp')
 colormap('turbo') % also try 'jet' and default 'parula'
 xlim([xctrs(1) xctrs(end)])
@@ -420,6 +421,32 @@ if cbar
     cwidth = c.Position(3)*5*factor;
 end
 
+% colorbar limits
+if strcmp(reshapeData{1},'none')
+    maxclr = 1.6;
+    maxclr_full = 1.8;
+elseif strcmp(reshapeData{1},'rescale')
+    maxclr = 3;
+    maxclr_full = 5;
+elseif strcmp(reshapeData{1},'worst')
+    set(gca,'ColorScale','log')
+    maxclr = 5;
+    maxclr_full = 5;
+    if cbar
+        c.Label.Position(2) = c.Label.Position(2) - cLabelAdjust/2;
+        c.Ticks = 0:(maxclr/10):maxclr;
+    end
+end
+
+if strcmp(figTitle,'Relative Neighbor Density')
+    caxis([0 maxclr_full])
+    if strcmp(reshapeData{1},'worst')
+        c.Label.Position = c.Label.Position + [cLabelAdjust/2 -cLabelAdjust 0];
+    end
+else
+    caxis([0 maxclr])
+end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Touch Up %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -443,7 +470,7 @@ end
     ax.Units = 'Inches';
     %paperPos = [0 0 wid wid*outerpos(4)/outerpos(3)];
     wid = ax.Position(3)*(1 + cwidth);% + ax.TightInset(1) + ax.TightInset(3));
-    paperPos = [0 0 wid hei];
+    paperPos = [0 0 wid hei+0.5]; % extra 0.5 for the subtitle
     set(h,'PaperPosition',paperPos);
     set(h,'Position',paperPos);
 end
