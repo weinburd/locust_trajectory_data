@@ -1,7 +1,7 @@
 %bar graphs of the proportion of neighbors to the side of the focal locust
 
 close all
-clear all % ensure we're loading new data
+%clear all % ensure we're loading new data
 
 addpath('../Data/',...
         '../Functions',...
@@ -70,137 +70,16 @@ if ~exist('recording2','var')
     fprintf('That took %f seconds \n', toc)
 end
 
-nClips = 0;
-nRecs = size(recording,2);
-for file_idx = 1:nRecs
-    nClips = nClips + size(recording(file_idx).data, 1);
-end
-totalData = cell(nClips, 16);
-clipNum = 1;
-
-%file_idx = 1; %vid133
-%file_idx = 2; %vid098
-%file_idx = 3; %vid096
-%file_idx = 4; %vid146
-
-for file_idx = 1:nRecs
-
-if (1 <= file_idx) && (file_idx <= 2)
-    data_all = recording(file_idx).data;
-elseif (3 <= file_idx) && (file_idx <= 4)
-    data_all = recording2(file_idx).data;
-end
-
-tic
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Data to be Plotted %%%
-matNums = 1:numel(data_all(:,1));
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-if isempty(recording(file_idx).corners)
-    scale = recording(file_idx).scale; % pi/cm
-    trans = [];
-    fieldDims = recording(file_idx).fieldDims / scale;
-    w = fieldDims(2)-fieldDims(1);
-    h = fieldDims(4)-fieldDims(3);
-    area = w*h*0.01^2;
-else
-    cornersPix = recording(file_idx).corners;
-    fieldDimsPix = recording(file_idx).fieldDims;
-    [trans, scale, fieldDims, newR_A] = projTrans(cornersPix, fieldDimsPix); % in cm
-    area = newR_A*0.01^2;
-end
-
-vmc = 4; 
-allData = cell(length(matNums),vmc);
-stopData = cell(length(matNums),vmc);
-crawlData = cell(length(matNums),vmc);
-hopData = cell(length(matNums),vmc);
-numFocal = 0;
-
-for m = matNums
-    
-    disp(['Now assembling data from vid' data_all{m,1}]);
-    
-    tic
-    % where the magic happens
-    if isa(numNeighbors,'double')
-        %%Here we assemble the data
-        data_struct = data_all{m,2};
-        
-        [data_final, neighbors] = struct2data(data_struct);
-        % extract position, orientation, and motion state
-        data = [data_final(:,idx_x:idx_y,:) data_final(:,idx_theta,:) data_final(:,idx_state,:)];
-
-        %%% for debugging... %%%
-        inDebug.count = 0;
-        inDebug.countnan = 0;
-        inDebug.countempty = 0;
-        inDebug.countnoneighs = 0;
-
-        % assemble a new neighbor list considering only the prescribed number of neighbors
-        [thisData, outDebug]...
-            = neighPositions(data, neighbors, inDebug, reshapeData);
-        
-        %thisData = nNeighs by 3 matrix = [xpos ypos focalState]
-        neighborAngles = atan2(thisData(:,2),thisData(:,1));
-        %d = 7; % 7 cm max radius for angles -- set above
-        idx_closeNeigh = ( vecnorm(thisData(:,1:2),2,2) < d );
-        
-        [totalLocs, density, vidStats] = collectiveData(data,area);
-        
-        allData{m,1} = thisData(:,1:2);
-        allData{m,2} = neighborAngles( idx_closeNeigh );
-        % proportion of side neighbors in this clip
-        allData{m,3} = sum( abs(allData{m,2}) > 3/4*pi | abs(allData{m,2}) < pi/4 )/...
-                       numel(allData{m,2});
-        allData{m,4} = vidStats(2);
-
-        
-        idx_stop = (thisData(:,3) == 0);
-        stopData{m,1} = thisData(idx_stop,1:2);
-        stopData{m,2} = neighborAngles(idx_stop & idx_closeNeigh);
-        % proportion of side neighbors in this clip
-        stopData{m,3} = sum( abs(stopData{m,2}) > 3/4*pi | abs(stopData{m,2}) < pi/4 )/...
-                        numel(stopData{m,2});
-        
-        idx_crawl = (thisData(:,3) == 1);
-        crawlData{m,1} = thisData(idx_crawl,1:2);
-        crawlData{m,2} = neighborAngles(idx_crawl & idx_closeNeigh);
-        % proportion of side neighbors in this clip
-        crawlData{m,3} = sum( abs(crawlData{m,2}) > 3/4*pi | abs(crawlData{m,2}) < pi/4 )/...
-                         numel(crawlData{m,2});
-        
-        idx_hop = (thisData(:,3) == 2);
-        hopData{m,1} = thisData(idx_hop,1:2);
-        hopData{m,2} = neighborAngles(idx_hop & idx_closeNeigh);
-        % proportion of side neighbors in this clip
-        hopData{m,3} = sum( abs(hopData{m,2}) > 3/4*pi | abs(hopData{m,2}) < pi/4 )/...
-                       numel(hopData{m,2});
-        
-        totalData(clipNum,:) = { allData{m,:}, stopData{m,:}, crawlData{m,:}, hopData{m,:} };
-        clipNum = clipNum + 1;
-        
-    elseif strcmp(numNeighbors,'all') %%% THIS IS NOT WORKING CURRENTLY
-        %this should also work, to simply use the giant neighbor cloud
-        allData{m} = data_all{m,3}; 
-        totalData{clipNum,1} = data_all{m,3};
-        clipNum = clipNum + 1;
-    end
-    
-    fprintf('Assembling that data took %f seconds \n', toc)
-end
-
-end
+totalData = collectData(recording, recording2, d, reshapeData);
 
 % totalData = 27 x 16 cell array
 %           = clips x [relative neighbor positions, 
 %                      relative neighbor angles, 
 %                      proportion of side neighbors,
-%                      empty] 
+%                      mean density] 
 %                      for each of all, stop, crawl, hop
 
+vmc = 4; % number of features in totalData for each motion state, defined in collectData()
 % convert to a matrix array
 allData = cell2mat(totalData(:,3));
 stopData = cell2mat(totalData(:,3+vmc));
@@ -220,7 +99,7 @@ ylabel("Proportion of Side Neighbors")
 
 % TODO: 
 %   Make y-axis symmetric about 0.50
-%   add a dotted line at proportion = 0.5=
+%   add a dotted line at proportion = 0.5
 %   find convenient way to include reshaped data as well
 %   modify the save statement to include this stuff
 %   in scatterplot, color dots by band#
@@ -247,7 +126,7 @@ plotrad = 7;
 
 bodyShapedData = matfile(figDataFile, 'Writable',true);
 
-bodyShapedData.(reshapeData{1}) = {binN, binCtrs, binSizes};
+%bodyShapedData.(reshapeData{1}) = {binN, binCtrs, binSizes};
 
 % save(figDataFile,   'binN', 'binCtrs',...
 %                     'binSizes','-append')
@@ -617,5 +496,139 @@ vidStats = [totalLocs, mean(density,'omitNaN'), std(density,'omitNaN'),...
 %                         circ_mean( rmmissing(aveDir) ), circ_std( rmmissing(aveDir) )];
 
 % output = density, aveDir, polarization, entropy, vidValues
+
+end
+
+function totalData = collectData(recording, recording2, d, reshapeData)
+
+global  idx_x idx_y idx_flag...
+        idx_speed idx_theta...
+        idx_localSpeed idx_localStd idx_localMinMax...
+        idx_state...
+        numNeighbors numFocal
+
+nClips = 0;
+nRecs = size(recording,2);
+for file_idx = 1:nRecs
+    nClips = nClips + size(recording(file_idx).data, 1);
+end
+totalData = cell(nClips, 16);
+clipNum = 1;
+
+%file_idx = 1; %vid133
+%file_idx = 2; %vid098
+%file_idx = 3; %vid096
+%file_idx = 4; %vid146
+
+for file_idx = 1:nRecs
+
+    if (1 <= file_idx) && (file_idx <= 2)
+        data_all = recording(file_idx).data;
+    elseif (3 <= file_idx) && (file_idx <= 4)
+        data_all = recording2(file_idx).data;
+    end
+
+    tic
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%% Data to be Plotted %%%
+    matNums = 1:numel(data_all(:,1));
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    if isempty(recording(file_idx).corners)
+        scale = recording(file_idx).scale; % pi/cm
+        trans = [];
+        fieldDims = recording(file_idx).fieldDims / scale;
+        w = fieldDims(2)-fieldDims(1);
+        h = fieldDims(4)-fieldDims(3);
+        area = w*h*0.01^2;
+    else
+        cornersPix = recording(file_idx).corners;
+        fieldDimsPix = recording(file_idx).fieldDims;
+        [trans, scale, fieldDims, newR_A] = projTrans(cornersPix, fieldDimsPix); % in cm
+        area = newR_A*0.01^2;
+    end
+
+    vmc = 4; 
+    allData = cell(length(matNums),vmc);
+    stopData = cell(length(matNums),vmc);
+    crawlData = cell(length(matNums),vmc);
+    hopData = cell(length(matNums),vmc);
+    numFocal = 0;
+
+    for m = matNums
+
+        disp(['Now assembling data from vid' data_all{m,1}]);
+
+        tic
+        % where the magic happens
+        if isa(numNeighbors,'double')
+            %%Here we assemble the data
+            data_struct = data_all{m,2};
+
+            [data_final, neighbors] = struct2data(data_struct);
+            % extract position, orientation, and motion state
+            data = [data_final(:,idx_x:idx_y,:) data_final(:,idx_theta,:) data_final(:,idx_state,:)];
+
+            %%% for debugging... %%%
+            inDebug.count = 0;
+            inDebug.countnan = 0;
+            inDebug.countempty = 0;
+            inDebug.countnoneighs = 0;
+
+            % assemble a new neighbor list considering only the prescribed number of neighbors
+            [thisData, outDebug]...
+                = neighPositions(data, neighbors, inDebug, reshapeData);
+
+            %thisData = nNeighs by 3 matrix = [xpos ypos focalState]
+            neighborAngles = atan2(thisData(:,2),thisData(:,1));
+            %d = 7; % 7 cm max radius for angles -- set above
+            idx_closeNeigh = ( vecnorm(thisData(:,1:2),2,2) < d );
+
+            [totalLocs, density, vidStats] = collectiveData(data,area);
+
+            allData{m,1} = thisData(:,1:2);
+            allData{m,2} = neighborAngles( idx_closeNeigh );
+            % proportion of side neighbors in this clip
+            allData{m,3} = sum( abs(allData{m,2}) > 3/4*pi | abs(allData{m,2}) < pi/4 )/...
+                           numel(allData{m,2});
+            allData{m,4} = vidStats(2);
+
+
+            idx_stop = (thisData(:,3) == 0);
+            stopData{m,1} = thisData(idx_stop,1:2);
+            stopData{m,2} = neighborAngles(idx_stop & idx_closeNeigh);
+            % proportion of side neighbors in this clip
+            stopData{m,3} = sum( abs(stopData{m,2}) > 3/4*pi | abs(stopData{m,2}) < pi/4 )/...
+                            numel(stopData{m,2});
+
+            idx_crawl = (thisData(:,3) == 1);
+            crawlData{m,1} = thisData(idx_crawl,1:2);
+            crawlData{m,2} = neighborAngles(idx_crawl & idx_closeNeigh);
+            % proportion of side neighbors in this clip
+            crawlData{m,3} = sum( abs(crawlData{m,2}) > 3/4*pi | abs(crawlData{m,2}) < pi/4 )/...
+                             numel(crawlData{m,2});
+
+            idx_hop = (thisData(:,3) == 2);
+            hopData{m,1} = thisData(idx_hop,1:2);
+            hopData{m,2} = neighborAngles(idx_hop & idx_closeNeigh);
+            % proportion of side neighbors in this clip
+            hopData{m,3} = sum( abs(hopData{m,2}) > 3/4*pi | abs(hopData{m,2}) < pi/4 )/...
+                           numel(hopData{m,2});
+
+            totalData(clipNum,:) = { allData{m,:}, stopData{m,:}, crawlData{m,:}, hopData{m,:} };
+            clipNum = clipNum + 1;
+
+        elseif strcmp(numNeighbors,'all') %%% THIS IS NOT WORKING CURRENTLY
+            %this should also work, to simply use the giant neighbor cloud
+            allData{m} = data_all{m,3}; 
+            totalData{clipNum,1} = data_all{m,3};
+            clipNum = clipNum + 1;
+        end
+
+        fprintf('Assembling that data took %f seconds \n', toc)
+    end
+
+end
 
 end
