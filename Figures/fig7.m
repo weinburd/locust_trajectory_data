@@ -1,5 +1,5 @@
-%plots relative neighbor density as appears in Figure 4 and Figure 1 (right).
-%also plots a relative neighbor density after correcting for locust body shape.
+%bar graphs of the proportion of neighbors to the side of the focal locust
+
 close all
 clear all % ensure we're loading new data
 
@@ -24,7 +24,7 @@ figDataFile = 'fig_data_reshape.mat';
 
 %%% Options %%%
 saveFigs = 1;
-assembleData = 0; %and save it to figDataFile
+assembleData = 1; %and save it to figDataFile
     %else loads data from figDataFile
 
 % the max number of neighbors around each focal individual
@@ -148,20 +148,36 @@ for m = matNums
         %d = 7; % 7 cm max radius for angles -- set above
         idx_closeNeigh = ( vecnorm(thisData(:,1:2),2,2) < d );
         
+        [totalLocs, density, vidStats] = collectiveData(data,area);
+        
         allData{m,1} = thisData(:,1:2);
         allData{m,2} = neighborAngles( idx_closeNeigh );
+        % proportion of side neighbors in this clip
+        allData{m,3} = sum( abs(allData{m,2}) > 3/4*pi | abs(allData{m,2}) < pi/4 )/...
+                       numel(allData{m,2});
+        allData{m,4} = vidStats(2);
+
         
         idx_stop = (thisData(:,3) == 0);
         stopData{m,1} = thisData(idx_stop,1:2);
         stopData{m,2} = neighborAngles(idx_stop & idx_closeNeigh);
+        % proportion of side neighbors in this clip
+        stopData{m,3} = sum( abs(stopData{m,2}) > 3/4*pi | abs(stopData{m,2}) < pi/4 )/...
+                        numel(stopData{m,2});
         
         idx_crawl = (thisData(:,3) == 1);
         crawlData{m,1} = thisData(idx_crawl,1:2);
         crawlData{m,2} = neighborAngles(idx_crawl & idx_closeNeigh);
+        % proportion of side neighbors in this clip
+        crawlData{m,3} = sum( abs(crawlData{m,2}) > 3/4*pi | abs(crawlData{m,2}) < pi/4 )/...
+                         numel(crawlData{m,2});
         
         idx_hop = (thisData(:,3) == 2);
         hopData{m,1} = thisData(idx_hop,1:2);
         hopData{m,2} = neighborAngles(idx_hop & idx_closeNeigh);
+        % proportion of side neighbors in this clip
+        hopData{m,3} = sum( abs(hopData{m,2}) > 3/4*pi | abs(hopData{m,2}) < pi/4 )/...
+                       numel(hopData{m,2});
         
         totalData(clipNum,:) = { allData{m,:}, stopData{m,:}, crawlData{m,:}, hopData{m,:} };
         clipNum = clipNum + 1;
@@ -178,11 +194,36 @@ end
 
 end
 
+% totalData = 27 x 16 cell array
+%           = clips x [relative neighbor positions, 
+%                      relative neighbor angles, 
+%                      proportion of side neighbors,
+%                      empty] 
+%                      for each of all, stop, crawl, hop
+
 % convert to a matrix array
-allData = cell2mat(totalData(:,1));
-stopData = cell2mat(totalData(:,1+vmc));
-crawlData = cell2mat(totalData(:,1+2*vmc));
-hopData = cell2mat(totalData(:,1+3*vmc));
+allData = cell2mat(totalData(:,3));
+stopData = cell2mat(totalData(:,3+vmc));
+crawlData = cell2mat(totalData(:,3+2*vmc));
+hopData = cell2mat(totalData(:,3+3*vmc));
+
+f1 = figure(19);
+boxchart([allData stopData crawlData hopData]);
+ax = gca(f1);
+ax.XTickLabel = ["all", "stop", "walk", "hop"];
+ylabel("Proportion of Side Neighbors")
+
+f2 = figure(57);
+scatter( cell2mat(totalData(:,4)), allData)
+xlabel("Mean Density")
+ylabel("Proportion of Side Neighbors")
+
+% TODO: 
+%   Make y-axis symmetric about 0.50
+%   add a dotted line at proportion = 0.5=
+%   find convenient way to include reshaped data as well
+%   modify the save statement to include this stuff
+%   in scatterplot, color dots by band#
 
 % histogram options
 dx = 0.5;
@@ -473,4 +514,108 @@ end
     paperPos = [0 0 wid hei+0.5]; % extra 0.5 for the subtitle
     set(h,'PaperPosition',paperPos);
     set(h,'Position',paperPos);
+end
+
+function [totalLocs, density vidStats] = collectiveData(data,area)
+%[totalLocs, density, aveDir, polarization, entropy, vidStats] = collectiveData(data,area)
+
+global  idx_x idx_y idx_flag...
+        idx_speed idx_theta...
+        idx_localSpeed idx_localStd idx_localMinMax...
+        idx_state
+
+[Nlocs, Nfeats, Ntimes] = size(data);
+
+%%% Initialize Variables %%%
+density = nan(Ntimes,1);
+aveDir = nan(Ntimes,1);
+polarization = nan(Ntimes,1);
+entropy = nan(Ntimes,1);
+totalLocs = 0;
+
+for t = 1:Ntimes
+    
+    nLocusts = size(rmmissing(   data(:,idx_x,t)   ),1);
+    totalLocs = totalLocs + nLocusts;
+    
+    %%% Density %%%
+    density(t) = nLocusts/area;
+    
+%     %%% Polarization & Average Direction %%%
+%     cVects = rmmissing( data(:,idx_speed,t).*exp(1i*data(:,idx_theta,t)) );
+%     cVects_norm = cVects./abs(cVects); % creates NaNs when abs(cVects) = 0
+%     % If we set cVects_norm = 0 for each cVects = 0, we would have angle(0)
+%     % included in our mean. Matlab says angle(0) = 0, while I say angle(0)
+%     % should be undefined, and therefore be excluded.
+%     % So we simply omit NaNs from out computation of the mean.
+%     aveDirVect = mean(cVects_norm, 'omitnan'); 
+%     aveDir(t) = angle(aveDirVect);
+%     polarization(t) = abs(aveDirVect);
+    
+%     %%% Entropy %%%
+%     % based on Buhl 2011, Baldasarre 2009
+%     angles = rmmissing(   data(:,idx_theta,t)   );
+%     
+%     C = 72; % number of classes, each 5 degrees
+%     edges = linspace(0,2*pi,C);
+%     
+%     nAngles = size(angles,1)-1; %subtract one because we're about to exclude one
+%     
+%     if nAngles >= 0 % sometimes there are no angles!
+%         rng default %set outside function
+%         idx_ex = randi(nAngles+1); %choose a random to determine where theta = 0 is
+%         
+%         degreeShift = 360/(C*2);
+%         thetaRotate = angles(idx_ex)-degreeShift/180*pi;
+%         angles(idx_ex) = []; %exclude that one
+%         
+%         angles = angles - thetaRotate; %rotate everyone else
+%     else
+%         nAngles = 0;
+%     end
+%     
+%     
+%     
+%     [binCounts, edges] = histcounts(mod(angles,2*pi), edges);
+%     binCounts( binCounts == 0 ) = []; % throw out the zero binCounts
+%     % for debugging
+% %     if sum(binCounts) ~= nAngles
+% %         fprintf([   'Sum of BinCounts = %d != %d = nAngles \n'...
+% %                     'Locust removed: %d \n'...
+% %                     '--- \n'], sum(binCounts),nAngles,idx_ex)
+% %     end
+% 
+%     % for the normalization factor
+%     I = floor(nAngles/C);
+%     R = mod(nAngles,C);
+%         
+%     if nAngles>170 % to approximate log(factorial(n));
+%         logFact_nAngles = logFact(nAngles); 
+%         logFact_binCounts = logFact(binCounts);
+%         
+%         log_wmax = logFact_nAngles - sum( (C-R)*logFact(I) + R*logFact(I+1) );
+%         k = 1/log_wmax;
+%     else % or to compute directly
+%         logFact_nAngles = log(factorial(nAngles));
+%         logFact_binCounts = log(factorial(binCounts));
+%         
+%         wmax = factorial(nAngles)/(   factorial(I+1)^(R)*factorial(I)^(C-R)   );
+%         k = 1/log(  wmax  );
+%     end
+%     
+%     
+%     entropy(t) = k*( logFact_nAngles - sum( logFact_binCounts ) );
+% 
+end
+
+% aveDir = unwrap( aveDir, [], 1 ); %removes discontinuities from -pi to pi
+% was in vidValues mean(aveDir,'omitNaN')
+vidStats = [totalLocs, mean(density,'omitNaN'), std(density,'omitNaN'),...
+                          ];
+%                         mean(polarization,'omitNaN'), std(polarization,'omitNaN'),...
+%                         mean(entropy,'omitNaN'), std(entropy,'omitNaN'),...
+%                         circ_mean( rmmissing(aveDir) ), circ_std( rmmissing(aveDir) )];
+
+% output = density, aveDir, polarization, entropy, vidValues
+
 end
