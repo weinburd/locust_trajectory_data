@@ -30,7 +30,9 @@ assembleData = 1; %and save it to figDataFile
 % the max number of neighbors around each focal individual
 % can be an integer or 'all', but 'all' cannot distinguish focalState
 numNeighbors = 100; % 100 gets all of them % 'all';
-d = 7; % 7 cm max radius for angles
+d = 4; % 7 cm max radius for angles
+% for comparing rescaled must set this at maxmum to 14/3 because the
+% original data goes out to a radius of 14 cm and the rescaling factor is 1/3
 
 % for RESHAPING Data
 % suppose a locust is approximatly 5mm wide and 15mm long
@@ -72,6 +74,8 @@ end
 
 totalData = collectData(recording, recording2, d, reshapeData);
 
+rescaleData = collectData(recording, recording2, d, {'rescale', [.5 1.5]});
+
 % totalData = 27 x 16 cell array
 %           = clips x [relative neighbor positions, 
 %                      relative neighbor angles, 
@@ -79,30 +83,63 @@ totalData = collectData(recording, recording2, d, reshapeData);
 %                      mean density] 
 %                      for each of all, stop, crawl, hop
 
+clear box
+
 vmc = 4; % number of features in totalData for each motion state, defined in collectData()
 % convert to a matrix array
 allData = cell2mat(totalData(:,3));
 stopData = cell2mat(totalData(:,3+vmc));
 crawlData = cell2mat(totalData(:,3+2*vmc));
 hopData = cell2mat(totalData(:,3+3*vmc));
+box.prop = [allData.prop stopData.prop crawlData.prop hopData.prop]';
+box.motion(1:27) = "all";
+box.motion(28:54) = "stop";
+box.motion(55:81) = "crawl";
+box.motion(82:108) = "hop";
+box.type(1:108) = "original";
+
+allRescale = cell2mat(rescaleData(:,3));
+stopRescale = cell2mat(rescaleData(:,3+vmc));
+crawlRescale = cell2mat(rescaleData(:,3+2*vmc));
+hopRescale = cell2mat(rescaleData(:,3+3*vmc));
+box.prop = [box.prop; [allRescale.prop stopRescale.prop crawlRescale.prop hopRescale.prop]'];
+box.motion = [box.motion box.motion];
+box.type(109:216) = "rescaled";
 
 f1 = figure(19);
-boxchart([allData stopData crawlData hopData]);
-ax = gca(f1);
-ax.XTickLabel = ["all", "stop", "walk", "hop"];
+% some fiddly row vs. column stuff here
+boxchart( categorical(box.motion), box.prop, "GroupByColor", box.type ) 
+%ax = gca(f1);
+%ax.XTickLabel = ["all", "stop", "walk", "hop"];
 ylabel("Proportion of Side Neighbors")
+legend(["original", "rescaled"])
+
+meanDens = cell2mat(totalData(:,4));
+color = lines(6);
+
+bands(1:6,1) = "Band 1";
+bands(7:13,1) = "Band 3";
+bands(14:20,1) = "Band 2";
+bands(21:27,1) = "Band 4";
 
 f2 = figure(57);
-scatter( cell2mat(totalData(:,4)), allData)
+gscatter( meanDens, [allData.prop], bands, color(1:4,:), '.', 36)
+hold on
+gscatter( meanDens, [allRescale.prop], bands, color(1:4,:), 'x', 16)
+hold off
 xlabel("Mean Density")
 ylabel("Proportion of Side Neighbors")
+legend(["Band 1", "Band 3", "Band 2", "Band 4"])
 
 % TODO: 
 %   Make y-axis symmetric about 0.50
 %   add a dotted line at proportion = 0.5
-%   find convenient way to include reshaped data as well
+%   DONE do reshape data as well as original data
+%   DONE experiment with "d" and ensure we're not including too many isometric
+%       neighbors far out
 %   modify the save statement to include this stuff
-%   in scatterplot, color dots by band#
+%   DONE in scatterplot, color dots by band#
+%   test reshaping on simulated (uniform) data?
 
 % histogram options
 dx = 0.5;
@@ -590,8 +627,7 @@ for file_idx = 1:nRecs
             allData{m,1} = thisData(:,1:2);
             allData{m,2} = neighborAngles( idx_closeNeigh );
             % proportion of side neighbors in this clip
-            allData{m,3} = sum( abs(allData{m,2}) > 3/4*pi | abs(allData{m,2}) < pi/4 )/...
-                           numel(allData{m,2});
+            allData{m,3} = countNei( allData{m,2} );
             allData{m,4} = vidStats(2);
 
 
@@ -599,22 +635,19 @@ for file_idx = 1:nRecs
             stopData{m,1} = thisData(idx_stop,1:2);
             stopData{m,2} = neighborAngles(idx_stop & idx_closeNeigh);
             % proportion of side neighbors in this clip
-            stopData{m,3} = sum( abs(stopData{m,2}) > 3/4*pi | abs(stopData{m,2}) < pi/4 )/...
-                            numel(stopData{m,2});
+            stopData{m,3} = countNei( stopData{m,2} );
 
             idx_crawl = (thisData(:,3) == 1);
             crawlData{m,1} = thisData(idx_crawl,1:2);
             crawlData{m,2} = neighborAngles(idx_crawl & idx_closeNeigh);
             % proportion of side neighbors in this clip
-            crawlData{m,3} = sum( abs(crawlData{m,2}) > 3/4*pi | abs(crawlData{m,2}) < pi/4 )/...
-                             numel(crawlData{m,2});
+            crawlData{m,3} = countNei( crawlData{m,2} );
 
             idx_hop = (thisData(:,3) == 2);
             hopData{m,1} = thisData(idx_hop,1:2);
             hopData{m,2} = neighborAngles(idx_hop & idx_closeNeigh);
             % proportion of side neighbors in this clip
-            hopData{m,3} = sum( abs(hopData{m,2}) > 3/4*pi | abs(hopData{m,2}) < pi/4 )/...
-                           numel(hopData{m,2});
+            hopData{m,3} = countNei( hopData{m,2} );
 
             totalData(clipNum,:) = { allData{m,:}, stopData{m,:}, crawlData{m,:}, hopData{m,:} };
             clipNum = clipNum + 1;
@@ -630,5 +663,14 @@ for file_idx = 1:nRecs
     end
 
 end
+
+end
+
+function quad_nei = countNei(data)
+
+quad_nei.side = sum( abs(data) > 3/4*pi | abs(data) < pi/4 );
+quad_nei.all = numel(data);
+quad_nei.nan = sum( isnan(data) );
+quad_nei.prop = quad_nei.side / quad_nei.all;
 
 end
