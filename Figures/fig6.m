@@ -1,5 +1,6 @@
 %plots relative neighbor density as appears in Figure 4 and Figure 1 (right).
 %also plots a relative neighbor density after correcting for locust body shape.
+
 close all
 clear all % ensure we're loading new data
 
@@ -24,12 +25,12 @@ figDataFile = 'fig_data_reshape.mat';
 
 %%% Options %%%
 saveFigs = 1;
-assembleData = 0; %and save it to figDataFile
+assembleData = 1; %and save it to figDataFile
     %else loads data from figDataFile
 
 % the max number of neighbors around each focal individual
 % can be an integer or 'all', but 'all' cannot distinguish focalState
-numNeighbors = 100; % 100 gets all of them % 'all';
+numNeighbors = 1; %100; % 100 gets all of them % 'all';
 d = 7; % 7 cm max radius for angles
 
 % for RESHAPING Data
@@ -206,7 +207,7 @@ plotrad = 7;
 
 bodyShapedData = matfile(figDataFile, 'Writable',true);
 
-bodyShapedData.(reshapeData{1}) = {binN, binCtrs, binSizes};
+bodyShapedData.(reshapeData{1}) = {binN, binCtrs, binSizes, numNeighbors};
 
 % save(figDataFile,   'binN', 'binCtrs',...
 %                     'binSizes','-append')
@@ -217,6 +218,7 @@ else
     binN = these_data{1};
     binCtrs = these_data{2};
     binSizes = these_data{3};
+    numNeighbors = these_data{4};
     
 %     load(figDataFile,   'binN', 'binCtrs',...
 %                         'binSizes')
