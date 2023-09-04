@@ -24,12 +24,12 @@ figDataFile = 'fig_data_reshape.mat';
 
 %%% Options %%%
 saveFigs = 1;
-assembleData = 1; %and save it to figDataFile
+assembleData = 0; %and save it to figDataFile
     %else loads data from figDataFile
 
 % the max number of neighbors around each focal individual
 % can be an integer or 'all', but 'all' cannot distinguish focalState
-numNeighbors = 100; % 100 gets all of them % 'all';
+numNeighbors = 1; % 100 gets all of them % 'all';
 d = 4; % 7 cm max radius for angles
 % for comparing rescaled must set this at maxmum to 14/3 because the
 % original data goes out to a radius of 14 cm and the rescaling factor is 1/3
@@ -137,6 +137,7 @@ end
 tic
 
 mytitle = sprintf("Proportion Side Neighbors ($K = %d$, $d = %d$ cm)", numNeighbors, d );
+mytitle = sprintf("Proportion of Side Neighbors");
 
 figbox = figure(19);
 % some categorical stuff here
@@ -160,19 +161,24 @@ bands(14:20,1) = "Band 2";
 bands(21:27,1) = "Band 4";
 
 figscat = figure(57);
-gscatter( scatter.dens, scatter.prop_orig, bands, color(1:4,:), '.', 36)
+gdot = gscatter( scatter.dens, scatter.prop_orig, bands, color(1:4,:), '.', 36);
 hold on
-g = gscatter( scatter.dens, scatter.prop_rescale, bands, color(1:4,:), 'x', 12);
+gdothide = gscatter( [0], [0], {'dot'}, 'k', '.', 36);
+gcrosshide = gscatter([0], [0], {'cross'}, 'k', 'x', 12);
+gcrosshide(1).LineWidth = 3;
+gcross = gscatter( scatter.dens, scatter.prop_rescale, bands, color(1:4,:), 'x', 12);
 % add a black dotted line at 0.5
 ax = gca(figscat);
 plot(ax.XLim, [0.5 0.5], '--k')
 hold off
-for i = 1:numel(g)
-    g(i).LineWidth = 3;
+for i = 1:numel(gcross)
+    gcross(i).LineWidth = 3;
 end
+xlim([0 300])
+ylim([0.475 0.65])
 xlabel("Mean Density", "FontSize", 20)
 ylabel("Proportion of Side Neighbors", "FontSize", 20)
-legend(["Band 1", "Band 3", "Band 2", "Band 4"], "FontSize", 14)
+legend([gdothide; gcrosshide; gdot],["original", "rescaled", "Band 1", "Band 3", "Band 2", "Band 4"], "FontSize", 14)
 title( mytitle, "FontSize", 24 )
 
 % TODO: 

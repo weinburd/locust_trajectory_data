@@ -16,7 +16,8 @@ global  idx_x idx_y idx_flag...
         idx_speed idx_theta...
         idx_localSpeed idx_localStd idx_localMinMax...
         idx_state...
-        numNeighbors numFocal
+        numNeighbors numFocal...
+        large_box small_box
 
 figDataFile = 'fig_data_reshape.mat';
 
@@ -25,7 +26,7 @@ figDataFile = 'fig_data_reshape.mat';
 
 %%% Options %%%
 saveFigs = 1;
-assembleData = 1; %and save it to figDataFile
+assembleData = 0; %and save it to figDataFile
     %else loads data from figDataFile
 
 % the max number of neighbors around each focal individual
@@ -33,11 +34,14 @@ assembleData = 1; %and save it to figDataFile
 numNeighbors = 1; %100; % 100 gets all of them % 'all';
 d = 7; % 7 cm max radius for angles
 
+large_box = 14;
+small_box = 7;
+
 % for RESHAPING Data
 % suppose a locust is approximatly 5mm wide and 15mm long
 reshapeData = {'none', [0 0]}; 
-%reshapeData = {'rescale', [.5 1.5]}; 
-%reshapeData = {'worst', [0 1.5]}; 
+reshapeData = {'rescale', [.5 1.5]}; 
+reshapeData = {'worst', [0 1.5]}; 
 % 'rescale', [.5 1.5] will rescale by: 0.5*[1/.5 1/1.5]
 % or
 % 'subtract', [.5 1.5] will subtract the distance within ellipse
@@ -192,10 +196,10 @@ dy = 0.5;
 binSizes = [dx dy];
 
 %%% Histogram ALL %%%
-plotrad = 14;
+plotrad = large_box;
 [binN.all, binCtrs.all] = RelNeiBins(allData, binSizes, plotrad);
 
-plotrad = 7;
+plotrad = small_box;
 %%% Histogram STOP %%%
 [binN.stop, binCtrs.stop] = RelNeiBins(stopData, binSizes, plotrad);
 
@@ -233,11 +237,11 @@ tic
 % binSizes = loaded from the file
 
 %%% FIGURE ALL %%%
-plotrad = 14;
-figTitle = sprintf("Relative Neighbor Density");
+plotrad = large_box;
+figTitle = sprintf("Nearest Neighbor Relative Density");
 h_all = plotRelNeiDen(number, binN.all, binCtrs.all, binSizes, plotrad, figTitle, reshapeData);
 
-plotrad = 7;
+plotrad = small_box;
 %binSizes = [0.25 0.25];
 %%% FIGURE STOP %%%
 figTitle = sprintf("Around Stationary Locusts");
@@ -289,7 +293,7 @@ function [binN, binCtrs] = RelNeiBins(neighbors, binSizes, plotrad)
 % histogram options
 dx = binSizes(1);
 dy = binSizes(2);
-%plotrad = 14;
+%plotrad = large_box;
 xedges = -plotrad:dx:plotrad;
 yedges = -plotrad:dy:plotrad;
 edges = {xedges, yedges};
@@ -301,6 +305,8 @@ binCtrs = ctrs;
 end
 
 function h = plotRelNeiDen(figNum, binN, binCtrs, binSizes, plotrad, figTitle,varargin)
+
+global numNeighbors large_box small_box
 
 reshapeData = varargin{1};
 
@@ -318,7 +324,7 @@ set(h,'Position',[ 0 0 wid hei]);
 % histogram options
 dx = binSizes(1);
 dy = binSizes(2);
-%plotrad = 14;
+%plotrad = large_box;
 xedges = -plotrad:dx:plotrad;
 yedges = -plotrad:dy:plotrad;
 edges = {xedges, yedges};
@@ -333,11 +339,11 @@ ctrs = binCtrs;
 % 1) area of circle or square, 
 % 2) total number of neighbors in the plot
 n = sum(N,'all');
-if plotrad == 14
+if plotrad == large_box
     N = N*1/(dx*dy)*pi*plotrad^2/n;
     focalSize = 3*factor;
     focalLine = [1/factor 2]; %length width
-elseif plotrad == 7
+elseif plotrad == small_box
     N = N*1/(dx*dy)*(2*plotrad)^2/n;
     focalSize = 8*factor;
     focalLine = [.75 2*factor];
@@ -353,7 +359,7 @@ colormap('turbo') % also try 'jet' and default 'parula'
 xlim([xctrs(1) xctrs(end)])
 ylim([yctrs(1) yctrs(end)])
 daspect([1 1 1]) %pbaspect([1 1 1])
-if plotrad == 7
+if plotrad == small_box
     %caxis([0 1.6])
 end
 view(2)
@@ -386,16 +392,20 @@ ax = gca;
 axpos = ax.Position;
 ax.PositionConstraint = 'innerposition';
 
-figSubtitle = sprintf('With Body-Shape Correction: %s', reshapeData{1});
+correction = reshapeData{1};
+if strcmp(correction, 'worst')
+    correction = 'extreme';
+end
+figSubtitle = sprintf('With Body-Shape Correction: %s', correction);
 
 set(ax, 'FontSize', ticklabelsize)
 xlabel('$\Delta x$ (cm)','FontSize',axislabelsize)
 ylabel('$\Delta y$ (cm)','FontSize',axislabelsize)
-title(figTitle,'FontSize',titlesize)
+%title(figTitle,'FontSize',titlesize)
 subtitle(figSubtitle,'FontSize',axislabelsize)
 
 % colorbar labels
-if strcmp(figTitle,'Relative Neighbor Density') || strcmp(figTitle,'Around Hopping Locusts')
+if strcmp(figTitle,'Nearest Neighbor Relative Density') || strcmp(figTitle,'Around Hopping Locusts')
     cbar = 1;
 else
     cbar = 0;
@@ -403,7 +413,7 @@ else
 end
 
 if factor == 2
-    cLabelAdjust = 1.3;
+    cLabelAdjust = 1.5;
     cPosAdjust = [ 0 0 0 0 ];
 elseif factor == 1
     cLabelAdjust = 1.25;
@@ -425,28 +435,47 @@ end
 
 % colorbar limits
 if strcmp(reshapeData{1},'none')
-    maxclr = 1.6;
-    maxclr_full = 1.8;
+    title(figTitle,'FontSize',titlesize)
+    % for numNeighbors == 1
+    maxclr = 4;
+    maxclr_full = 12;
+    if numNeighbors == 100
+        maxclr = 1.6;
+        maxclr_full = 1.8;
+    end
 elseif strcmp(reshapeData{1},'rescale')
-    maxclr = 3;
-    maxclr_full = 5;
+    % for numNeighbors == 1
+    maxclr = 10;
+    maxclr_full = 30;
+    if numNeighbors == 100
+        maxclr = 3;
+        maxclr_full = 5;
+    end
 elseif strcmp(reshapeData{1},'worst')
     set(gca,'ColorScale','log')
-    maxclr = 5;
-    maxclr_full = 5;
+    maxclr = 15;
+    maxclr_full = 15;
+    if numNeighbors == 100
+        maxclr = 5;
+        maxclr_full = 5;
+    end
     if cbar
-        c.Label.Position(2) = c.Label.Position(2) - cLabelAdjust/2;
+        c.Label.Position(2) = c.Label.Position(2) - cLabelAdjust*1.5;
         c.Ticks = 0:(maxclr/10):maxclr;
     end
 end
 
-if strcmp(figTitle,'Relative Neighbor Density')
-    caxis([0 maxclr_full])
+if strcmp(figTitle,'Nearest Neighbor Relative Density')
+    clr_lim = maxclr_full;
     if strcmp(reshapeData{1},'worst')
-        c.Label.Position = c.Label.Position + [cLabelAdjust/2 -cLabelAdjust 0];
+        c.Label.Position = c.Label.Position + [cLabelAdjust/5 -10*cLabelAdjust 0];
     end
 else
-    caxis([0 maxclr])
+    clr_lim = maxclr; 
+end
+
+if numNeighbors == 1
+    caxis([0 clr_lim])
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
