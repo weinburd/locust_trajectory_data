@@ -94,7 +94,7 @@ hopData = cell2mat(totalData(:,3+3*vmc));
 box.prop = [allData.prop stopData.prop crawlData.prop hopData.prop]';
 box.motion(1:27) = "all";
 box.motion(28:54) = "stop";
-box.motion(55:81) = "crawl";
+box.motion(55:81) = "walk";
 box.motion(82:108) = "hop";
 box.type(1:108) = "original";
 
@@ -106,74 +106,26 @@ box.prop = [box.prop; [allRescale.prop stopRescale.prop crawlRescale.prop hopRes
 box.motion = [box.motion box.motion];
 box.type(109:216) = "rescaled";
 
-f1 = figure(19);
-% some fiddly row vs. column stuff here
-boxchart( categorical(box.motion), box.prop, "GroupByColor", box.type ) 
-%ax = gca(f1);
-%ax.XTickLabel = ["all", "stop", "walk", "hop"];
-ylabel("Proportion of Side Neighbors")
-legend(["original", "rescaled"])
-
-meanDens = cell2mat(totalData(:,4));
-color = lines(6);
-
-bands(1:6,1) = "Band 1";
-bands(7:13,1) = "Band 3";
-bands(14:20,1) = "Band 2";
-bands(21:27,1) = "Band 4";
-
-f2 = figure(57);
-gscatter( meanDens, [allData.prop], bands, color(1:4,:), '.', 36)
-hold on
-gscatter( meanDens, [allRescale.prop], bands, color(1:4,:), 'x', 16)
-hold off
-xlabel("Mean Density")
-ylabel("Proportion of Side Neighbors")
-legend(["Band 1", "Band 3", "Band 2", "Band 4"])
-
-% TODO: 
-%   Make y-axis symmetric about 0.50
-%   add a dotted line at proportion = 0.5
-%   DONE do reshape data as well as original data
-%   DONE experiment with "d" and ensure we're not including too many isometric
-%       neighbors far out
-%   modify the save statement to include this stuff
-%   DONE in scatterplot, color dots by band#
-%   test reshaping on simulated (uniform) data?
-
-% histogram options
-dx = 0.5;
-dy = 0.5;
-
-binSizes = [dx dy];
-
-%%% Histogram ALL %%%
-plotrad = 14;
-[binN.all, binCtrs.all] = RelNeiBins(allData, binSizes, plotrad);
-
-plotrad = 7;
-%%% Histogram STOP %%%
-[binN.stop, binCtrs.stop] = RelNeiBins(stopData, binSizes, plotrad);
-
-%%% Histogram CRAWL %%%
-[binN.crawl, binCtrs.crawl] = RelNeiBins(crawlData, binSizes, plotrad);
-
-%%% Histogram HOP %%%
-[binN.hop, binCtrs.hop] = RelNeiBins(hopData, binSizes, plotrad);
+scatter.dens = cell2mat(totalData(:,4));
+scatter.prop_orig = [allData.prop];
+scatter.prop_rescale = [allRescale.prop];
 
 bodyShapedData = matfile(figDataFile, 'Writable',true);
 
-%bodyShapedData.(reshapeData{1}) = {binN, binCtrs, binSizes};
+bodyShapedData.("boxplot") = box;
+bodyShapedData.("scatter") = scatter;
+bodyShapedData.("numNei") = numNeighbors;
+bodyShapedData.("minDist") = d;
 
 % save(figDataFile,   'binN', 'binCtrs',...
 %                     'binSizes','-append')
 
 else
     bodyShapedData = matfile(figDataFile);
-    these_data = bodyShapedData.(reshapeData{1});
-    binN = these_data{1};
-    binCtrs = these_data{2};
-    binSizes = these_data{3};
+    box = bodyShapedData.boxplot;
+    scatter = bodyShapedData.scatter;
+    numNeighbors = bodyShapedData.numNei;
+    d = bodyShapedData.minDist;
     
 %     load(figDataFile,   'binN', 'binCtrs',...
 %                         'binSizes')
@@ -184,27 +136,54 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 tic
 
-% histogram options
-% binSizes = loaded from the file
+mytitle = sprintf("Proportion Side Neighbors ($K = %d$, $d = %d$ cm)", numNeighbors, d );
 
-%%% FIGURE ALL %%%
-plotrad = 14;
-figTitle = sprintf("Relative Neighbor Density");
-h_all = plotRelNeiDen(number, binN.all, binCtrs.all, binSizes, plotrad, figTitle, reshapeData);
+figbox = figure(19);
+% some categorical stuff here
+catmotion = categorical(box.motion, ["all", "space", "stop","space1",  "walk","space2",  "hop"]);
+b = boxchart( catmotion, box.prop, "GroupByColor", box.type, "boxwidth", 0.8 );
+hold on
+ax = gca(figbox);
+plot(ax.XLim, [0.5 0.5], '--k')
+hold off
+ax.XTickLabel = ["all", " ","stop"," ", "walk"," ", "hop"];
+ax.XAxis.FontSize = 20;
+ylabel("Proportion of Side Neighbors", "FontSize", 20)
+legend(["original", "rescaled"], "FontSize", 14)
+title( mytitle, "FontSize", 24 )
 
-plotrad = 7;
-%binSizes = [0.25 0.25];
-%%% FIGURE STOP %%%
-figTitle = sprintf("Around Stationary Locusts");
-h_stationary = plotRelNeiDen(number+1, binN.stop, binCtrs.stop, binSizes, plotrad, figTitle, reshapeData);
+color = lines(6);
 
-%%% FIGURE CRAWL %%%
-figTitle = sprintf("Around Walking Locusts");
-h_walk = plotRelNeiDen(number+2, binN.crawl, binCtrs.crawl, binSizes, plotrad, figTitle, reshapeData);
+bands(1:6,1) = "Band 1";
+bands(7:13,1) = "Band 3";
+bands(14:20,1) = "Band 2";
+bands(21:27,1) = "Band 4";
 
-%%% FIGURE HOP %%%
-figTitle = sprintf("Around Hopping Locusts");
-h_hop = plotRelNeiDen(number+3, binN.hop, binCtrs.hop, binSizes, plotrad, figTitle, reshapeData);
+figscat = figure(57);
+gscatter( scatter.dens, scatter.prop_orig, bands, color(1:4,:), '.', 36)
+hold on
+g = gscatter( scatter.dens, scatter.prop_rescale, bands, color(1:4,:), 'x', 12);
+% add a black dotted line at 0.5
+ax = gca(figscat);
+plot(ax.XLim, [0.5 0.5], '--k')
+hold off
+for i = 1:numel(g)
+    g(i).LineWidth = 3;
+end
+xlabel("Mean Density", "FontSize", 20)
+ylabel("Proportion of Side Neighbors", "FontSize", 20)
+legend(["Band 1", "Band 3", "Band 2", "Band 4"], "FontSize", 14)
+title( mytitle, "FontSize", 24 )
+
+% TODO: 
+%   NO Make y-axis symmetric about 0.50
+%   DONE add a dotted line at proportion = 0.5
+%   DONE do reshape data as well as original data
+%   DONE experiment with "d" and ensure we're not including too many isometric
+%       neighbors far out
+%   DONE modify the save statement to include this stuff
+%   DONE in scatterplot, color dots by band#
+%   test reshaping on simulated (uniform) data?
 
 fprintf('Plotting all the figures took %f seconds \n', toc)
     
@@ -215,17 +194,11 @@ if saveFigs
     
     figPath = 'figs/';
     
-    filename = sprintf('fig6_density_%s',reshapeData{1});
-    print(h_all,[figPath filename, '.eps'],'-depsc')
+    filename = sprintf('fig7_box_K%d_d%d', numNeighbors,d);
+    print(figbox,[figPath filename, '.eps'],'-depsc')
     
-    filename = sprintf('fig6_stationary_%s',reshapeData{1});
-    print(h_stationary,[figPath filename, '.eps'],'-depsc')
-    
-    filename = sprintf('fig6_walk_%s',reshapeData{1});
-    print(h_walk,[figPath filename, '.eps'],'-depsc')
-    
-    filename = sprintf('fig6_hop_%s',reshapeData{1});
-    print(h_hop,[figPath filename, '.eps'],'-depsc')
+    filename = sprintf('fig7_scatter_K%d_d%d', numNeighbors,d);
+    print(figscat,[figPath filename, '.eps'],'-depsc')
     
 end
 
@@ -239,200 +212,8 @@ end
 % end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [binN, binCtrs] = RelNeiBins(neighbors, binSizes, plotrad)
-
-% histogram options
-dx = binSizes(1);
-dy = binSizes(2);
-%plotrad = 14;
-xedges = -plotrad:dx:plotrad;
-yedges = -plotrad:dy:plotrad;
-edges = {xedges, yedges};
-% histogram counts
-[N, ctrs] = hist3(neighbors,'Edges',edges,'CdataMode','auto','Normalization','pdf');
-binN = N;
-binCtrs = ctrs;
-
-end
-
-function h = plotRelNeiDen(figNum, binN, binCtrs, binSizes, plotrad, figTitle,varargin)
-
-reshapeData = varargin{1};
-
-factor = 2; % choose 1 or 2
-
-wid = 3.75*factor;
-hei = 3*factor;
-h = figure(figNum);
-set(h,'Units','Inches');
-pos = get(h, 'Position');
-set(h,'PaperPositionMode','Manual') % Setting this to 'manual' unlinks 'Position' (what gets displayed) and 'PaperPosition' (what gets printed)
-set(h,'PaperPosition',[ 0 0 wid hei]);
-set(h,'Position',[ 0 0 wid hei]);
-
-% histogram options
-dx = binSizes(1);
-dy = binSizes(2);
-%plotrad = 14;
-xedges = -plotrad:dx:plotrad;
-yedges = -plotrad:dy:plotrad;
-edges = {xedges, yedges};
-% histogram counts
-N = binN;
-ctrs = binCtrs;
-%[N, ctrs] = hist3(neighbors,'Edges',edges,'CdataMode','auto','Normalization','pdf');
-
-% convert to "relative density", according to Buhl et al. 2012
-
-% When computing relative density, we need to account for 
-% 1) area of circle or square, 
-% 2) total number of neighbors in the plot
-n = sum(N,'all');
-if plotrad == 14
-    N = N*1/(dx*dy)*pi*plotrad^2/n;
-    focalSize = 3*factor;
-    focalLine = [1/factor 2]; %length width
-elseif plotrad == 7
-    N = N*1/(dx*dy)*(2*plotrad)^2/n;
-    focalSize = 8*factor;
-    focalLine = [.75 2*factor];
-end
-
-xctrs = ctrs{1}; yctrs = ctrs{2}; % these are the bin centers
-xctrs = xctrs(1:end-1); yctrs = yctrs(1:end-1); %cut off last empty bin
-N = N(1:end-1,1:end-1);
-% plot as a surface
-N(N < 0.000001) = 0.000001; % remove zero counts
-surf(xctrs,yctrs,N', 'EdgeColor','None','FaceColor','interp')
-colormap('turbo') % also try 'jet' and default 'parula'
-xlim([xctrs(1) xctrs(end)])
-ylim([yctrs(1) yctrs(end)])
-daspect([1 1 1]) %pbaspect([1 1 1])
-if plotrad == 7
-    %caxis([0 1.6])
-end
-view(2)
-
-%%% Add focal locust %%%
-if ~(strcmp(reshapeData{1},'subtract') || strcmp(reshapeData{1},'subtractVert'))
-hold on
-quiver3(0,0,1.1*max(max(N)),0,focalLine(1),0,...
-        'o','MarkerSize',focalSize,'LineWidth',focalLine(2),...
-        'MarkerFaceColor','w','Color','w','AutoScale','off')
-hold off
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Figure Options %%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-titlesize = 12*factor;
-axislabelsize = 10*factor;
-fontSize = axislabelsize;
-ticklabelsize = 8*factor;
-subfiglabelsize = 12*factor;
-
-%linewidth
-lwidth = 1.5*factor;
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Labels %%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-ax = gca;
-axpos = ax.Position;
-ax.PositionConstraint = 'innerposition';
-
-figSubtitle = sprintf('With Body-Shape Correction: %s', reshapeData{1});
-
-set(ax, 'FontSize', ticklabelsize)
-xlabel('$\Delta x$ (cm)','FontSize',axislabelsize)
-ylabel('$\Delta y$ (cm)','FontSize',axislabelsize)
-title(figTitle,'FontSize',titlesize)
-subtitle(figSubtitle,'FontSize',axislabelsize)
-
-% colorbar labels
-if strcmp(figTitle,'Relative Neighbor Density') || strcmp(figTitle,'Around Hopping Locusts')
-    cbar = 1;
-else
-    cbar = 0;
-    cwidth = 0;
-end
-
-if factor == 2
-    cLabelAdjust = 1.3;
-    cPosAdjust = [ 0 0 0 0 ];
-elseif factor == 1
-    cLabelAdjust = 1.25;
-    cPosAdjust = [0.07 0 -.02 0];
-end
-
-if cbar
-    c = colorbar(ax);
-    cbpos = c.Position;
-    c.Position = cbpos + cPosAdjust;
-    c.Label.String = 'Relative Density';
-    c.Label.FontSize = fontSize;
-    c.Label.Rotation = 270;
-    c.Label.Position(1) = c.Label.Position(1) + cLabelAdjust;
-    c.Label.Interpreter = 'latex';
-    c.TickLabelInterpreter = 'latex';
-    cwidth = c.Position(3)*5*factor;
-end
-
-% colorbar limits
-if strcmp(reshapeData{1},'none')
-    maxclr = 1.6;
-    maxclr_full = 1.8;
-elseif strcmp(reshapeData{1},'rescale')
-    maxclr = 3;
-    maxclr_full = 5;
-elseif strcmp(reshapeData{1},'worst')
-    set(gca,'ColorScale','log')
-    maxclr = 5;
-    maxclr_full = 5;
-    if cbar
-        c.Label.Position(2) = c.Label.Position(2) - cLabelAdjust/2;
-        c.Ticks = 0:(maxclr/10):maxclr;
-    end
-end
-
-if strcmp(figTitle,'Relative Neighbor Density')
-    caxis([0 maxclr_full])
-    if strcmp(reshapeData{1},'worst')
-        c.Label.Position = c.Label.Position + [cLabelAdjust/2 -cLabelAdjust 0];
-    end
-else
-    caxis([0 maxclr])
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Touch Up %%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %remove whitespace
-    ax.Units = 'Inches';
-    %ax = gca;
-    outerpos = ax.OuterPosition;
-    axpos = ax.Position;
-    ti = ax.TightInset; 
-    %colorbarX = c.Position(3);
-%     left = outerpos(1) + ti(1);
-%     bottom = outerpos(2) + ti(2);
-%     ax_width = outerpos(3) - ti(1) - ti(3);
-%     ax_height = outerpos(4) - ti(2) - ti(4);
-    left =  ti(1); %axpos(1) +
-    bottom = axpos(2);% + ti(2);
-    ax_width = axpos(3);% - ti(1) - ti(3);
-    ax_height = axpos(4);% - ti(2) - ti(4);
-    ax.Position = [left bottom ax_width ax_height];
-    
-    ax.Units = 'Inches';
-    %paperPos = [0 0 wid wid*outerpos(4)/outerpos(3)];
-    wid = ax.Position(3)*(1 + cwidth);% + ax.TightInset(1) + ax.TightInset(3));
-    paperPos = [0 0 wid hei+0.5]; % extra 0.5 for the subtitle
-    set(h,'PaperPosition',paperPos);
-    set(h,'Position',paperPos);
-end
-
 function [totalLocs, density vidStats] = collectiveData(data,area)
+%modified from Table 1 (I think?)
 %[totalLocs, density, aveDir, polarization, entropy, vidStats] = collectiveData(data,area)
 
 global  idx_x idx_y idx_flag...
