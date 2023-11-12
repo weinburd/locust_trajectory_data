@@ -433,11 +433,12 @@ set(h,'Position',[ 0 0 4 3]*factor);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Figure Options %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-titlesize = 12*factor;
-axislabelsize = 10*factor;
+titlesize = 12*factor+4;
+axislabelsize = 10*factor+4;
 fontSize = axislabelsize;
-ticklabelsize = 8*factor;
-subfiglabelsize = 12*factor;
+ticklabelsize = 8*factor+2;
+subfiglabelsize = 12*factor+2;
+%added 4 to all because these figures are scaled down the most (and the referee asked for bitter text)
 
 %linewidth
 lwidth = 1.5*factor;
@@ -569,7 +570,8 @@ if strcmp(figTitle,'Around Hopping Locusts')
     legend([p(1) p(2) pUni f(2)],...
             {'front-back asymmetry', 'four-fold anisotropy',...
             'anisotropy of uniform dist.', '$\pm 5$ standard deviations'},...
-            'Location','northeast')
+            'Location','northeast',...
+            'FontSize', axislabelsize-2)
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
